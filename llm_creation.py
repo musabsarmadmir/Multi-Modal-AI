@@ -72,19 +72,43 @@ default_candidate_captions = [
     "Quench your thirst, ignite your spirit."
 ]
 
-def generate_captions_with_llm(prompt, max_tokens=500, temperature=0.8):
+def generate_captions_with_llm(prompt, max_tokens=500, temperature=0.8, system_prompt=None, count=50, caption_context="general image"):
     """
     Base function to generate captions using Groq/Llama
     """
     try:
+        # Default system prompt if none provided - now uses variables
+        if system_prompt is None:
+            system_prompt = f"""You are an AI captioning engine using a multimodal model. Your task is to generate {count} short, catchy, and shareable captions for Instagram images, tailored to a Gen Z Pakistani audience.
+
+Context: {caption_context}
+
+Your expertise:
+- Create captions with mixed emotions: happy, energetic, calm, nostalgic, mysterious
+- Vary caption lengths (5-15 words each)
+- Use casual, relatable, and trending Pakistani Gen Z slang and humor
+- Blend English, Urdu, and Roman Urdu naturally, reflecting local digital culture
+- Include pop culture references commonly used in Pakistan
+- Prioritize captions that are witty, memeable, and have high social media engagement potential
+- Make them shareable and engaging for Instagram
+
+Requirements:
+- Keep captions under 15 words
+- Return as Python list format: ["caption1", "caption2", ...]
+- Avoid offensive, political, or NSFW content
+- Generate diverse, creative captions suitable for Instagram
+- Output only the final list without any extra commentary or text"""
+
+        from groq.types.chat import ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam
+
+        messages = [
+            ChatCompletionSystemMessageParam(role="system", content=system_prompt),
+            ChatCompletionUserMessageParam(role="user", content=prompt)
+        ]
+        
         chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            model="llama3-8b-8192",  # or "llama3-70b-8192" for better quality
+            messages=messages,
+            model="llama3-70b-8192",
             max_tokens=max_tokens,
             temperature=temperature,
         )
@@ -92,51 +116,7 @@ def generate_captions_with_llm(prompt, max_tokens=500, temperature=0.8):
     except Exception as e:
         print(f"Error generating captions: {e}")
         return None
-    
-def generate_emotional_captions(emotion_type, count=10):
-    """
-    Generate emotion-focused captions
-    emotion_type: 'happy', 'calm', 'energetic', 'nostalgic', 'mysterious'
-    """
-    prompt = f"""
-    Generate {count} {emotion_type} and emotionally engaging captions for images.
-    Focus on evoking {emotion_type} feelings.
-    
-    Requirements:
-    - Each caption should be 5-20 words
-    - Vary the style and approach
-    - Make them suitable for social media or marketing
-    - Return ONLY a Python list format: ["caption1", "caption2", ...]
-    
-    Emotion focus: {emotion_type}
-    """
-    
-    response = generate_captions_with_llm(prompt)
-    return parse_caption_response(response)
 
-def generate_marketing_captions(focus_type, count=10):
-    """
-    Generate marketing-focused captions
-    focus_type: 'product', 'lifestyle', 'experience', 'benefit'
-    """
-    # Similar structure to emotional captions
-    # You'll implement the prompt based on marketing focus
-
-def generate_length_specific_captions(length_type, count=10):
-    """
-    Generate captions of specific lengths
-    length_type: 'short', 'medium', 'long'
-    """
-    # You'll implement this with length constraints
-
-def generate_industry_captions(industry, count=10):
-    """
-    Generate industry-specific captions
-    industry: 'food', 'travel', 'tech', 'fashion', 'health'
-    """
-    # You'll implement industry-specific prompts
-    
-    
     
 def parse_caption_response(response):
     """
@@ -176,7 +156,7 @@ def parse_caption_response(response):
                 len(cleaned) > 3 and 
                 len(cleaned) < 200 and
                 not cleaned.startswith(('http', 'www', '#')) and
-                not cleaned.endswith((':', '?', 'caption')):
+                not cleaned.endswith((':', '?', 'caption'))):
                 captions.append(cleaned)
         
         return captions[:20]  # Limit to 20 captions
@@ -186,75 +166,46 @@ def parse_caption_response(response):
         return []
     
     
-class CaptionPoolManager:
-    def __init__(self):
-        self.caption_pools = {
-            'emotional': {},
-            'marketing': {},
-            'length': {},
-            'industry': {}
-        }
-        self.default_captions = default_candidate_captions
-    
-    def generate_diverse_pool(self, total_captions=100):
-        """
-        Generate a diverse pool of captions from all categories
-        """
-        all_captions = []
-        
-        # Generate emotional captions (for now, just implement this one)
-        try:
-            emotions = ['happy', 'calm', 'energetic', 'nostalgic', 'mysterious']
-            for emotion in emotions:
-                emotional_caps = generate_emotional_captions(emotion, 8)
-                all_captions.extend(emotional_caps)
-        except Exception as e:
-            print(f"Error generating emotional captions: {e}")
-        
-        # Add default captions as backup
-        all_captions.extend(self.default_captions)
-        
-        # Remove duplicates and limit
-        unique_captions = list(set(all_captions))
-        return unique_captions[:total_captions]
-    
-    def get_balanced_caption_set(self, image_context="", count=50):
-        """
-        Get a balanced set of captions based on image context
-        """
-        try:
-            diverse_pool = self.generate_diverse_pool(count * 2)  # Generate more to select from
-            if len(diverse_pool) >= count:
-                return random.sample(diverse_pool, count)
-            else:
-                return diverse_pool
-        except Exception as e:
-            print(f"Error generating balanced caption set: {e}")
-            return self.default_captions[:count]
-    
-    
-def image_captioning_with_llm_categories(image_path, use_llm=True, caption_context=""):
+def image_captioning_with_llm(image_path, use_llm=True, caption_context="", count=50):
     """
-    Enhanced image captioning with LLM-generated categories
+    Enhanced image captioning with direct LLM caption generation
     """
     if use_llm:
         print("🤖 Generating LLM captions...")
-        caption_manager = CaptionPoolManager()
-        candidate_captions = caption_manager.get_balanced_caption_set(
-            image_context=caption_context, count=50
+        
+        # Generate captions directly using LLM
+        prompt = f"""Generate {count} creative, engaging captions for this image.
+
+Context: {caption_context if caption_context else "general image"}
+
+Focus on creating diverse captions that are:
+- Shareable and engaging for Instagram
+- Mix of different emotions and vibes
+- Perfect for Pakistani Gen Z audience
+- Naturally blending English, Urdu, and Roman Urdu
+
+Return as Python list: ["caption1", "caption2", ...]"""
+        
+        response = generate_captions_with_llm(
+            prompt, 
+            max_tokens=800, 
+            temperature=0.9,
+            count=count,
+            caption_context=caption_context
         )
+        candidate_captions = parse_caption_response(response)
         
         # Fallback to default if LLM fails
-        if not candidate_captions:
-            print("⚠️ LLM failed, using default captions")
+        if not candidate_captions or len(candidate_captions) < 10:
+            print("⚠️ LLM failed or generated insufficient captions, using default captions")
             candidate_captions = default_candidate_captions
         else:
             print(f"✅ Generated {len(candidate_captions)} captions using LLM")
     else:
         candidate_captions = default_candidate_captions
         print(f"📝 Using {len(candidate_captions)} default captions")
-    
-    # Your existing image processing code
+
+    # Image processing with CLIP
     inputs, processor = load_and_preprocess_image(image_path)
     image_features, clip_model = generate_image_embeddings(inputs)
     best_captions, similarities = match_captions(image_features, candidate_captions, clip_model, processor)
@@ -265,20 +216,31 @@ def test_llm_integration():
     """Test the LLM integration"""
     print("🧪 Testing Groq connection...")
     try:
-        test_captions = generate_emotional_captions("happy", 3)
-        print(f"✅ Generated {len(test_captions)} test captions:")
-        for i, caption in enumerate(test_captions, 1):
-            print(f"   {i}. {caption}")
-        return len(test_captions) > 0
+        # Test with a simple caption generation
+        test_prompt = "Generate 3 happy captions for an image. Return as list: ['caption1', 'caption2', 'caption3']"
+        response = generate_captions_with_llm(
+            test_prompt, 
+            max_tokens=200, 
+            temperature=0.7,
+            count=3,
+            caption_context="test image"
+        )
+        test_captions = parse_caption_response(response)
+        
+        if test_captions and len(test_captions) > 0:
+            print(f"✅ Generated {len(test_captions)} test captions:")
+            for i, caption in enumerate(test_captions[:3], 1):  # Show max 3
+                print(f"   {i}. {caption}")
+            return True
+        else:
+            print("❌ No captions generated")
+            return False
     except Exception as e:
         print(f"❌ LLM test failed: {e}")
         return False
 
 # Main execution
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🚀 LLM-ENHANCED IMAGE CAPTIONING SYSTEM")
-    print("=" * 60)
     
     # Test LLM connection first
     if test_llm_integration():
@@ -291,10 +253,11 @@ if __name__ == "__main__":
         
         try:
             # Run LLM-enhanced captioning
-            llm_best, llm_similarities, llm_captions = image_captioning_with_llm_categories(
+            llm_best, llm_similarities, llm_captions = image_captioning_with_llm(
                 image_path, 
                 use_llm=True, 
-                caption_context="casual photo"
+                caption_context="casual photo",
+                count=50
             )
             
             print(f"\n🎯 Top 5 LLM-Enhanced Captions:")
