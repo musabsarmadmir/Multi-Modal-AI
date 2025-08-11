@@ -2,6 +2,11 @@ import torch
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+from groq import Groq
+from dotenv import load_dotenv
+import json
+import random
 
 
 # image loading and preprocessing
@@ -135,6 +140,22 @@ top_n = min(5, len(best_captions))
 top_best_captions = best_captions[:top_n]
 top_similarities = similarities[:top_n]
 
-print("Top 5 Best Captions:")
-for i, (caption, similarity) in enumerate(zip(top_best_captions, top_similarities)):
-    print(f"{i+1}. {caption} (Similarity: {similarity:.4f})")
+# Main execution
+if __name__ == "__main__":
+    print("=" * 60)
+    print("🎯 STANDARD IMAGE CAPTIONING SYSTEM")
+    print("=" * 60)
+    
+    try:
+        print("📸 Processing image with CLIP...")
+        print(f"📝 Using {len(candidate_captions)} predefined captions")
+        
+        print(f"\n🏆 Top 5 Best Captions:")
+        for i, (caption, similarity) in enumerate(zip(top_best_captions, top_similarities)):
+            print(f"   {i+1}. {caption} (Similarity: {similarity:.4f})")
+            
+        print(f"\n📊 Total captions evaluated: {len(candidate_captions)}")
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("💡 Make sure your image path exists: content/musab_talal.jpg")
