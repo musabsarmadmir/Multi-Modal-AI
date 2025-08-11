@@ -72,9 +72,20 @@ default_candidate_captions = [
     "Quench your thirst, ignite your spirit."
 ]
 
-def generate_captions_with_llm(prompt, max_tokens=500, temperature=0.8, system_prompt=None, count=50, caption_context="general image"):
+def call_llm_api(prompt, max_tokens=500, temperature=0.8, system_prompt=None, count=50, caption_context="general image"):
     """
-    Base function to generate captions using Groq/Llama
+    Core LLM API interface function - handles communication with Groq/Llama model
+    
+    Args:
+        prompt: User prompt to send to the LLM
+        max_tokens: Maximum tokens for LLM response
+        temperature: Creativity level (0.0-1.0)
+        system_prompt: System instructions (auto-generated if None)
+        count: Number of captions to generate (used in system prompt)
+        caption_context: Image context (used in system prompt)
+        
+    Returns:
+        str: Raw LLM response text
     """
     try:
         # Default system prompt if none provided - now uses variables
@@ -166,9 +177,22 @@ def parse_caption_response(response):
         return []
     
     
-def image_captioning_with_llm(image_path, use_llm=True, caption_context="", count=50):
+def generate_and_match_captions(image_path, use_llm=True, caption_context="", count=50):
     """
-    Enhanced image captioning with direct LLM caption generation
+    Complete caption generation and matching pipeline
+    
+    1. Generates captions using LLM (or uses defaults)
+    2. Processes image with CLIP 
+    3. Matches captions to image using similarity scoring
+    
+    Args:
+        image_path: Path to the image file
+        use_llm: Whether to use LLM for caption generation
+        caption_context: Context description for the image
+        count: Number of captions to generate
+        
+    Returns:
+        tuple: (best_captions, similarities, all_candidate_captions)
     """
     if use_llm:
         print("🤖 Generating LLM captions...")
@@ -186,7 +210,7 @@ Focus on creating diverse captions that are:
 
 Return as Python list: ["caption1", "caption2", ...]"""
         
-        response = generate_captions_with_llm(
+        response = call_llm_api(
             prompt, 
             max_tokens=800, 
             temperature=0.9,
@@ -218,7 +242,7 @@ def test_llm_integration():
     try:
         # Test with a simple caption generation
         test_prompt = "Generate 3 happy captions for an image. Return as list: ['caption1', 'caption2', 'caption3']"
-        response = generate_captions_with_llm(
+        response = call_llm_api(
             test_prompt, 
             max_tokens=200, 
             temperature=0.7,
@@ -253,7 +277,7 @@ if __name__ == "__main__":
         
         try:
             # Run LLM-enhanced captioning
-            llm_best, llm_similarities, llm_captions = image_captioning_with_llm(
+            llm_best, llm_similarities, llm_captions = generate_and_match_captions(
                 image_path, 
                 use_llm=True, 
                 caption_context="casual photo",
